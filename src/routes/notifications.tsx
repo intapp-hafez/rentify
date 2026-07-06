@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { getNotifications, type GeneratedNotification } from "@/api/analytics";
+import { useAppNotifications } from "@/hooks/useAppNotifications";
 
 export const Route = createFileRoute("/notifications")({
   head: () => ({ meta: [{ title: "مركز الإشعارات — Rentify" }] }),
@@ -73,20 +74,17 @@ function Row({ n, onRead }: { n: GeneratedNotification & { read: boolean }; onRe
 function NotificationsPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | NotifType>("all");
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
 
-  const { data: notifications = [], isLoading, isFetching } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: getNotifications,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  const {
+    notifications: enriched,
+    unreadCount: unread,
+    isLoading,
+    isFetching,
+    markRead,
+    markAllRead
+  } = useAppNotifications();
 
-  const enriched = notifications.map(n => ({ ...n, read: readIds.has(n.id) }));
-  const unread = enriched.filter(n => !n.read).length;
   const shown = enriched.filter(n => filter === "all" ? true : n.type === filter);
-
-  const markRead = (id: string) => setReadIds(prev => new Set([...prev, id]));
-  const markAllRead = () => setReadIds(new Set(notifications.map(n => n.id)));
 
   return (
     <AppLayout title="مركز الإشعارات" subtitle={`${unread} إشعار يحتاج انتباهك`}>

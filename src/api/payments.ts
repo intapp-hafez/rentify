@@ -8,6 +8,7 @@ type PaymentUpdate = Database['public']['Tables']['payments']['Update'];
 export type PaymentWithRelations = PaymentRow & {
   contracts: { 
     number: string | null;
+    unit_id: string | null;
     units: { title: string; number: string | null } | null;
     tenants: { full_name: string } | null;
   } | null;
@@ -16,7 +17,7 @@ export type PaymentWithRelations = PaymentRow & {
 export const getPayments = async (): Promise<PaymentWithRelations[]> => {
   const { data, error } = await supabase
     .from('payments')
-    .select('*, contracts(number, units(title, number), tenants(full_name))')
+    .select('*, contracts(number, unit_id, units(title, number), tenants(full_name))')
     .order('created_at', { ascending: false });
 
   if (error) {

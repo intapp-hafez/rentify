@@ -7,7 +7,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useStore } from "@/lib/store";
+import { useAppNotifications } from "@/hooks/useAppNotifications";
 
 const quickActions = [
   { label: "إضافة وحدة", to: "/units" },
@@ -18,8 +18,7 @@ const quickActions = [
 
 export function AppLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { notifications, markRead } = useStore();
-  const unread = notifications.filter((n) => !n.read).length;
+  const { notifications, unreadCount: unread, markRead } = useAppNotifications();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
