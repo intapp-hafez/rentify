@@ -2,10 +2,11 @@ import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/database.types';
 
 type PaymentRow = Database['public']['Tables']['payments']['Row'];
-type PaymentInsert = Database['public']['Tables']['payments']['Insert'];
-type PaymentUpdate = Database['public']['Tables']['payments']['Update'];
+type PaymentInsert = Database['public']['Tables']['payments']['Insert'] & { payment_details?: any };
+type PaymentUpdate = Database['public']['Tables']['payments']['Update'] & { payment_details?: any };
 
 export type PaymentWithRelations = PaymentRow & {
+  payment_details?: any;
   contracts: { 
     number: string | null;
     unit_id: string | null;
@@ -29,7 +30,7 @@ export const getPayments = async (): Promise<PaymentWithRelations[]> => {
 export const addPayment = async (payment: PaymentInsert): Promise<PaymentRow> => {
   const { data, error } = await supabase
     .from('payments')
-    .insert([payment])
+    .insert([payment as any])
     .select()
     .single();
 
@@ -42,7 +43,7 @@ export const addPayment = async (payment: PaymentInsert): Promise<PaymentRow> =>
 export const updatePayment = async ({ id, ...updateData }: PaymentUpdate & { id: string }): Promise<PaymentRow> => {
   const { data, error } = await supabase
     .from('payments')
-    .update(updateData)
+    .update(updateData as any)
     .eq('id', id)
     .select()
     .single();

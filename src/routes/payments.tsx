@@ -29,6 +29,13 @@ export const Route = createFileRoute("/payments")({
 const paymentStatuses = ["مدفوع", "متأخر", "مستحق"];
 const ALL = "__all__";
 
+type PaymentFormValues = Omit<PaymentWithRelations, "id" | "created_at" | "contracts" | "receipt_url"> & {
+  notes?: string;
+  bank_name?: string;
+  account_number?: string;
+  other_number?: string;
+};
+
 function Payments() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -36,7 +43,6 @@ function Payments() {
   const [search, setSearch] = useState("");
   const [contractFilter, setContractFilter] = useState(ALL);
   const [tenantFilter, setTenantFilter] = useState(ALL);
-  const [statusFilter, setStatusFilter] = useState(ALL);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
   // Queries
@@ -101,13 +107,31 @@ function Payments() {
     },
     { name: "amount", label: "المبلغ", type: "number" },
     { name: "payment_method", label: "طريقة الدفع", type: "select", options: paymentMethods },
+    { name: "bank_name", label: "اسم البنك", hidden: (v) => v.payment_method !== "تحويل بنكي" },
+    { name: "account_number", label: "رقم الحساب", hidden: (v) => v.payment_method !== "تحويل بنكي" },
+    { name: "other_number", label: "الرقم", hidden: (v) => !v.payment_method || v.payment_method === "نقدي" || v.payment_method === "تحويل بنكي" },
     { name: "payment_date", label: "التاريخ", type: "date" },
     { name: "status", label: "الحالة", type: "select", options: paymentStatuses },
+    { name: "notes", label: "ملاحظات", type: "textarea", colSpan: 2 },
   ];
+
+  const prepareSubmitData = (v: any) => {
+    const payment_details: any = { notes: v.notes };
+    if (v.payment_method === "تحويل بنكي") {
+      payment_details.bank_name = v.bank_name;
+      payment_details.account_number = v.account_number;
+    } else if (v.payment_method && v.payment_method !== "نقدي") {
+      payment_details.number = v.other_number;
+    }
+    const { notes, bank_name, account_number, other_number, ...rest } = v;
+    return { ...rest, payment_details };
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    // Only show actually paid payments — due/overdue are tracked on the contract detail page
     return payments
+      .filter((p) => p.status === "مدفوع")
       .filter((p) => {
         const c_num = p.contracts?.number || "";
         const t_name = p.contracts?.tenants?.full_name || "";
@@ -115,14 +139,13 @@ function Payments() {
 
         if (contractFilter !== ALL && c_num !== contractFilter) return false;
         if (tenantFilter !== ALL && t_name !== tenantFilter) return false;
-        if (statusFilter !== ALL && p.status !== statusFilter) return false;
         if (q && ![p.receipt_number || "", t_name, u_name].some((v) => v.toLowerCase().includes(q))) return false;
         return true;
       })
       .sort((a, b) =>
         sortDir === "desc" ? b.payment_date.localeCompare(a.payment_date) : a.payment_date.localeCompare(b.payment_date),
       );
-  }, [payments, contractFilter, tenantFilter, statusFilter, search, sortDir]);
+  }, [payments, contractFilter, tenantFilter, search, sortDir]);
 
   const collected = filtered.filter((p) => p.status === "مدفوع").reduce((s, p) => s + p.amount, 0);
   const overdue = filtered.filter((p) => p.status === "متأخر").reduce((s, p) => s + p.amount, 0);
@@ -132,7 +155,6 @@ function Payments() {
     setSearch("");
     setContractFilter(ALL);
     setTenantFilter(ALL);
-    setStatusFilter(ALL);
   };
 
   const handleExport = () => {
@@ -205,11 +227,17 @@ function Payments() {
     {
       key: "actions", header: "إجراءات", render: (r) => (
         <div className="flex gap-1">
-          <CrudDialog<Omit<PaymentWithRelations, "id" | "created_at" | "contracts" | "receipt_url">> 
+          <CrudDialog<PaymentFormValues> 
             title="تعديل دفعة" 
             fields={fields} 
-            initial={r} 
-            onSubmit={(v) => updateMutation.mutate({ id: r.id, ...v } as any)}
+            initial={{
+              ...r,
+              notes: r.payment_details?.notes || "",
+              bank_name: r.payment_details?.bank_name || "",
+              account_number: r.payment_details?.account_number || "",
+              other_number: r.payment_details?.number || "",
+            }} 
+            onSubmit={(v) => updateMutation.mutate({ id: r.id, ...prepareSubmitData(v) } as any)}
             trigger={<Button size="icon" variant="ghost" className="h-8 w-8"><Pencil className="h-4 w-4" /></Button>} />
           <ConfirmDelete description={`سيتم حذف الإيصال "${r.receipt_number || '-'}".`} onConfirm={() => deleteMutation.mutate(r.id)}
             trigger={<Button size="icon" variant="ghost" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>} />
@@ -219,7 +247,7 @@ function Payments() {
   ];
 
   return (
-    <AppLayout title="التحصيلات والمدفوعات" subtitle="متابعة الإيجارات والمدفوعات والمتأخرات">
+    <AppLayout title="التحصيلات المدفوعة" subtitle="سجل إيصالات الدفع المحصلة">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="مستحقة" value={egp(due)} icon={CalendarCheck} tone="accent" />
         <KpiCard label="متأخرات" value={egp(overdue)} icon={AlertTriangle} tone="warning" />
@@ -245,13 +273,6 @@ function Payments() {
             <SelectContent>
               <SelectItem value={ALL}>كل المستأجرين</SelectItem>
               {tenants.map((t) => <SelectItem key={t.id} value={t.full_name}>{t.full_name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger><SelectValue placeholder="حالة الدفع" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>كل الحالات</SelectItem>
-              {paymentStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
           <div className="flex gap-2">
@@ -283,10 +304,13 @@ function Payments() {
           />
         </div>
 
-        <CrudDialog<Omit<PaymentWithRelations, "id" | "created_at" | "contracts" | "receipt_url">> 
+        <CrudDialog<PaymentFormValues> 
           title="تسجيل دفعة" 
           fields={fields} 
-          onSubmit={(v) => addMutation.mutate({ ...v, status: v.status || 'مدفوع', payment_method: v.payment_method || 'نقدي' } as any)}
+          onSubmit={(v) => {
+            const data = prepareSubmitData(v);
+            addMutation.mutate({ ...data, status: data.status || 'مدفوع', payment_method: data.payment_method || 'نقدي' } as any);
+          }}
           trigger={<Button className="gap-1"><Plus className="h-4 w-4" /> تسجيل دفعة</Button>} />
       </div>
       

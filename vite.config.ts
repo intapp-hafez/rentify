@@ -12,4 +12,15 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // Override the lovable default to output a node server instead of cloudflare worker
+    build: {
+      rollupOptions: {
+        // ...
+      }
+    }
+  },
+  nitro: {
+    preset: "node-server"
+  }
 });

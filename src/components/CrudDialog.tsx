@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -13,7 +14,7 @@ import {
 export interface CrudField {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "select";
+  type?: "text" | "number" | "date" | "select" | "textarea";
   options?: string[] | { label: string; value: string }[];
   colSpan?: 1 | 2;
   hidden?: (values: Record<string, any>) => boolean;
@@ -78,6 +79,12 @@ export function CrudDialog<T extends Record<string, any>>({
                     })}
                   </SelectContent>
                 </Select>
+              ) : f.type === "textarea" ? (
+                <Textarea
+                  value={values[f.name] ?? ""}
+                  onChange={(e) => set(f.name, e.target.value)}
+                  className="resize-none"
+                />
               ) : (
                 <Input
                   type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}

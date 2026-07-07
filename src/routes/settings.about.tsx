@@ -16,7 +16,7 @@ const appInfo = [
   {
     icon: User,
     label: "المطور",
-    value: "Mr. Hafez Rahim",
+    value: "Mr. Hafez Rahim +201007419344",
   },
   {
     icon: Tag,

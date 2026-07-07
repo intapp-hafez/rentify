@@ -2,6 +2,8 @@ import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Search, Bell, Menu, X, Plus } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
+import { GlobalSearch } from "./GlobalSearch";
+import { SubscriptionBadge } from "./SubscriptionBadge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -41,15 +43,10 @@ export function AppLayout({ title, subtitle, children }: { title: string; subtit
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
 
-          <div className="relative hidden max-w-md flex-1 md:block">
-            <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              placeholder="بحث شامل: عقار، وحدة، عقد، مستأجر..."
-              className="h-10 w-full rounded-lg border border-input bg-background pr-10 pl-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-            />
-          </div>
+          <GlobalSearch />
 
-          <div className="mr-auto flex items-center gap-2">
+          <div className="mr-auto flex items-center gap-3">
+            <SubscriptionBadge />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="gold" size="sm" className="gap-1">

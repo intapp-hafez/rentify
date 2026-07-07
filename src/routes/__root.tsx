@@ -112,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Rentify — نظام إدارة العقارات" },
       { name: "description", content: "نظام Rentify لإدارة العقارات والإيجارات والعقود والتحصيلات بسهولة واحترافية." },
-      { name: "author", content: "Mr. Hafez Rahim" },
+      { name: "author", content: "Mr. Hafez Rahim +201007419344" },
       { property: "og:title", content: "Rentify — نظام إدارة العقارات" },
       { property: "og:description", content: "إدارة العقارات والإيجارات بسهولة واحترافية." },
       { property: "og:type", content: "website" },

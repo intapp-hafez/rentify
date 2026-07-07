@@ -238,7 +238,7 @@ function SettingsIndex() {
       )}
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Developer: Mr. Hafez Rahim — Rentify v1.0.0
+        Developer: Mr. Hafez Rahim +201007419344 — Rentify v1.0.0
       </p>
     </>
   );

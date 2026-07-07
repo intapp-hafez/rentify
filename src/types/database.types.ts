@@ -44,13 +44,13 @@ export interface Database {
           number: string | null
           title: string
           address: string | null
-          type: 'apartment' | 'villa' | 'shop' | 'office'
+          type: string
           floor: string | null
           area: number | null
           rooms: number | null
           baths: number | null
           rent_price: number
-          status: 'available' | 'rented' | 'maintenance'
+          status: string
           city: string | null
           created_at: string
         }
@@ -59,13 +59,13 @@ export interface Database {
           number?: string | null
           title: string
           address?: string | null
-          type: 'apartment' | 'villa' | 'shop' | 'office'
+          type: string
           floor?: string | null
           area?: number | null
           rooms?: number | null
           baths?: number | null
           rent_price: number
-          status?: 'available' | 'rented' | 'maintenance'
+          status?: string
           city?: string | null
           created_at?: string
         }
@@ -74,13 +74,13 @@ export interface Database {
           number?: string | null
           title?: string
           address?: string | null
-          type?: 'apartment' | 'villa' | 'shop' | 'office'
+          type: string
           floor?: string | null
           area?: number | null
           rooms?: number | null
           baths?: number | null
           rent_price?: number
-          status?: 'available' | 'rented' | 'maintenance'
+          status?: string
           city?: string | null
           created_at?: string
         }
@@ -140,8 +140,8 @@ export interface Database {
           end_date: string
           rent_amount: number
           deposit: number | null
-          payment_frequency: 'monthly' | 'quarterly' | 'yearly'
-          status: 'active' | 'expired' | 'terminated' | 'محجوز' | 'نشط' | 'عقد منتهي'
+          payment_frequency: string
+          status: string
           created_at: string
         }
         Insert: {
@@ -153,8 +153,8 @@ export interface Database {
           end_date: string
           rent_amount: number
           deposit?: number | null
-          payment_frequency?: 'monthly' | 'quarterly' | 'yearly'
-          status?: 'active' | 'expired' | 'terminated' | 'محجوز' | 'نشط' | 'عقد منتهي'
+          payment_frequency?: string
+          status?: string
           created_at?: string
         }
         Update: {
@@ -166,8 +166,8 @@ export interface Database {
           end_date?: string
           rent_amount?: number
           deposit?: number | null
-          payment_frequency?: 'monthly' | 'quarterly' | 'yearly'
-          status?: 'active' | 'expired' | 'terminated' | 'محجوز' | 'نشط' | 'عقد منتهي'
+          payment_frequency?: string
+          status?: string
           created_at?: string
         }
         Relationships: [
@@ -193,7 +193,7 @@ export interface Database {
           contract_id: string
           amount: number
           payment_date: string
-          status: 'pending' | 'completed' | 'late' | 'مدفوع' | 'متأخر' | 'مستحق'
+          status: string
           receipt_url: string | null
           receipt_number: string | null
           payment_method: string | null
@@ -204,7 +204,7 @@ export interface Database {
           contract_id: string
           amount: number
           payment_date: string
-          status?: 'pending' | 'completed' | 'late' | 'مدفوع' | 'متأخر' | 'مستحق'
+          status?: string
           receipt_url?: string | null
           receipt_number?: string | null
           payment_method?: string | null
@@ -215,7 +215,7 @@ export interface Database {
           contract_id?: string
           amount?: number
           payment_date?: string
-          status?: 'pending' | 'completed' | 'late' | 'مدفوع' | 'متأخر' | 'مستحق'
+          status?: string
           receipt_url?: string | null
           receipt_number?: string | null
           payment_method?: string | null
@@ -240,7 +240,7 @@ export interface Database {
           description: string
           type: string | null
           priority: string | null
-          status: 'pending' | 'in_progress' | 'completed' | 'مفتوح' | 'قيد التنفيذ' | 'مغلق' | 'جديد' | 'مكتمل'
+          status: string
           cost: number | null
           maintenance_date: string | null
           created_at: string
@@ -253,7 +253,7 @@ export interface Database {
           description?: string
           type?: string | null
           priority?: string | null
-          status?: 'pending' | 'in_progress' | 'completed' | 'مفتوح' | 'قيد التنفيذ' | 'مغلق' | 'جديد' | 'مكتمل'
+          status?: string
           cost?: number | null
           maintenance_date?: string | null
           created_at?: string
@@ -266,7 +266,7 @@ export interface Database {
           description?: string
           type?: string | null
           priority?: string | null
-          status?: 'pending' | 'in_progress' | 'completed' | 'مفتوح' | 'قيد التنفيذ' | 'مغلق' | 'جديد' | 'مكتمل'
+          status?: string
           cost?: number | null
           maintenance_date?: string | null
           created_at?: string
@@ -306,6 +306,33 @@ export interface Database {
           key?: string
           value?: string[]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          type: string
+          value: number
+          start_date: string
+          end_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          type?: string
+          value?: number
+          start_date?: string
+          end_date?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          type?: string
+          value?: number
+          start_date?: string
+          end_date?: string
+          created_at?: string
         }
         Relationships: []
       }

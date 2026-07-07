@@ -6,79 +6,109 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useStore } from "@/lib/store";
-import { egp, paymentMethods, type DuePayment } from "@/lib/mockData";
+import { addPayment } from "@/api/payments";
+import { useQueryClient } from "@tanstack/react-query";
+import { egp, paymentMethods } from "@/lib/mockData";
 import { toast } from "sonner";
-import { z } from "zod";
 
-const receiptSchema = z
-  .string()
-  .trim()
-  .nonempty({ message: "يرجى إدخال رقم الإيصال" })
-  .max(50, { message: "رقم الإيصال طويل جدًا" })
-  .regex(/^[A-Za-z0-9-]+$/, { message: "أحرف وأرقام وشرطة فقط" });
+interface PayNowDialogProps {
+  contractId: string;
+  amount: number;
+  dueDate: string;
+  installment: number;
+}
 
-export function PayNowDialog({ due }: { due: DuePayment }) {
-  const { addPayment, payments } = useStore();
+export function PayNowDialog({ contractId, amount, dueDate, installment }: PayNowDialogProps) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [receipt, setReceipt] = useState("");
   const [method, setMethod] = useState(paymentMethods[0]);
+  const [notes, setNotes] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [otherNumber, setOtherNumber] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function submit() {
-    const parsed = receiptSchema.safeParse(receipt);
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
+  async function submit() {
+    if (!receipt.trim()) {
+      toast.error("يرجى إدخال رقم الإيصال");
       return;
     }
-    const value = parsed.data;
-    const exists = payments.some(
-      (p) => p.receipt.trim().toLowerCase() === value.toLowerCase(),
-    );
-    if (exists) {
-      toast.error("رقم الإيصال مستخدم بالفعل، أدخل رقمًا فريدًا");
-      return;
+    setLoading(true);
+    try {
+      let payment_details: any = { notes };
+      if (method === "تحويل بنكي") {
+        payment_details.bank_name = bankName;
+        payment_details.account_number = accountNumber;
+      } else if (method !== "نقدي") {
+        payment_details.number = otherNumber;
+      }
+
+      await addPayment({
+        contract_id: contractId,
+        amount,
+        payment_date: dueDate,
+        status: "مدفوع",
+        receipt_number: receipt.trim(),
+        payment_method: method,
+        payment_details,
+        receipt_url: null,
+      });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      toast.success(`تم تسجيل القسط #${installment} كمدفوع`);
+      setOpen(false);
+      setReceipt("");
+    } catch (e: any) {
+      toast.error(e.message || "حدث خطأ أثناء التسجيل");
+    } finally {
+      setLoading(false);
     }
-    addPayment({
-      receipt: value,
-      tenant: due.tenant,
-      unit: due.unit,
-      amount: due.amount,
-      method,
-      date: due.dueDate,
-      status: "مدفوع",
-    });
-    toast.success(`تم تسجيل دفعة ${due.month} كمدفوعة`);
-    setOpen(false);
-    setReceipt("");
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setReceipt(""); }}>
+    <Dialog open={open} onOpenChange={(v) => { 
+      setOpen(v); 
+      if (v) {
+        setReceipt("");
+        setNotes("");
+        setBankName("");
+        setAccountNumber("");
+        setOtherNumber("");
+      }
+    }}>
       <DialogTrigger asChild>
-        <Button size="sm">ادفع الآن</Button>
+        <Button size="sm" variant="outline" className="h-7 gap-1 border-primary/40 text-primary hover:bg-primary/10 text-xs px-2">
+          ادفع الآن
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>تسجيل دفعة — {due.month}</DialogTitle>
-          <DialogDescription>أدخل رقم إيصال جديد لتأكيد السداد.</DialogDescription>
+          <DialogTitle>تسجيل دفعة — قسط #{installment}</DialogTitle>
+          <DialogDescription>أدخل رقم الإيصال وطريقة الدفع لتأكيد السداد.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-muted/50 p-3">
             <div>
               <p className="text-xs text-muted-foreground">المبلغ المستحق</p>
-              <p className="mt-1 font-semibold text-foreground">{egp(due.amount)}</p>
+              <p className="mt-1 text-lg font-bold text-foreground">{egp(amount)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">تاريخ الاستحقاق</p>
-              <p className="mt-1 font-semibold text-foreground">{due.dueDate}</p>
+              <p className="mt-1 font-semibold text-foreground">{dueDate}</p>
             </div>
           </div>
           <div>
-            <Label className="mb-1.5 block text-sm">رقم الإيصال الجديد</Label>
-            <Input value={receipt} onChange={(e) => setReceipt(e.target.value)} placeholder="مثال: RC-5006" />
+            <Label className="mb-1.5 block text-sm">رقم الإيصال</Label>
+            <Input
+              value={receipt}
+              onChange={(e) => setReceipt(e.target.value)}
+              placeholder="مثال: RC-5001"
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+            />
           </div>
           <div>
             <Label className="mb-1.5 block text-sm">طريقة الدفع</Label>
@@ -91,9 +121,34 @@ export function PayNowDialog({ due }: { due: DuePayment }) {
               </SelectContent>
             </Select>
           </div>
+          {method === "تحويل بنكي" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-1.5 block text-sm">اسم البنك</Label>
+                <Input value={bankName} onChange={(e) => setBankName(e.target.value)} />
+              </div>
+              <div>
+                <Label className="mb-1.5 block text-sm">رقم الحساب</Label>
+                <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+              </div>
+            </div>
+          )}
+          {method !== "نقدي" && method !== "تحويل بنكي" && (
+            <div>
+              <Label className="mb-1.5 block text-sm">الرقم</Label>
+              <Input value={otherNumber} onChange={(e) => setOtherNumber(e.target.value)} />
+            </div>
+          )}
+          <div>
+            <Label className="mb-1.5 block text-sm">ملاحظات</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
+          </div>
         </div>
         <DialogFooter>
-          <Button onClick={submit}>تأكيد الدفع</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+          <Button onClick={submit} disabled={loading}>
+            {loading ? "جاري الحفظ..." : "تأكيد الدفع"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

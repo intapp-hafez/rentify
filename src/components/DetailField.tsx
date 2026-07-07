@@ -15,7 +15,7 @@ export function DetailGrid({ items }: { items: { label: string; value: ReactNode
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="mb-3 mt-8 text-lg font-bold text-foreground">{children}</h2>;
+  return <h2 className="mb-3 mt-8 flex items-center gap-3 text-lg font-bold text-foreground">{children}</h2>;
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
