@@ -220,7 +220,11 @@ function ContractDetail() {
         { label: "الوحدة", value: contract.unit_id ? <Link to="/units/$id" params={{ id: contract.unit_id }} className="text-primary hover:underline">{contract.units?.title} - {contract.units?.number || ""}</Link> : "—" },
         { label: "تاريخ البداية", value: contract.start_date },
         { label: "تاريخ النهاية", value: contract.end_date },
-        { label: "دورية الدفع", value: contract.payment_frequency === "monthly" ? "شهري" : contract.payment_frequency === "quarterly" ? "ربع سنوي" : "سنوي" },
+        { label: "دورية الدفع", value:
+          contract.payment_frequency === "monthly" ? "شهري"
+          : contract.payment_frequency === "quarterly" ? "كل 3 شهور"
+          : contract.payment_frequency === "semiannual" ? "كل 6 شهور"
+          : "سنوي" },
         { label: "الإيجار", value: egp(contract.rent_amount) },
         { label: "التأمين", value: egp(contract.deposit || 0) },
         { label: "الحالة", value: <StatusBadge status={getContractStatus(contract.status, contract.end_date)} /> },
