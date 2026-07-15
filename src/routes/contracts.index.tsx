@@ -99,6 +99,17 @@ function Contracts() {
     { name: "end_date", label: "تاريخ النهاية", type: "date" },
     { name: "rent_amount", label: "الإيجار (شهري)", type: "number" },
     { name: "deposit", label: "التأمين", type: "number" },
+    {
+      name: "payment_frequency",
+      label: "دورية الدفع",
+      type: "select",
+      options: [
+        { value: "monthly", label: "شهري" },
+        { value: "quarterly", label: "كل 3 شهور" },
+        { value: "semiannual", label: "كل 6 شهور" },
+        { value: "yearly", label: "سنوي" },
+      ],
+    },
     { name: "status", label: "الحالة", type: "select", options: contractStatuses },
   ];
 
