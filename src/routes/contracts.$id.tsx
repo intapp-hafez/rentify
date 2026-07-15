@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { ArrowRight, Pencil, Trash2 } from "lucide-react";
-import { useMemo } from "react";
+import { ArrowRight, Pencil, Trash2, FileDown } from "lucide-react";
+import { useMemo, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -17,8 +17,10 @@ import { getUnits } from "@/api/units";
 import { getTenants } from "@/api/tenants";
 import {
   isBefore, startOfDay, addMonths, addQuarters,
-  addYears, parseISO, isAfter, format,
+  addYears, parseISO, isAfter, format, subDays,
 } from "date-fns";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const contractStatuses = ["نشط", "عقد منتهي", "محجوز"];
 
@@ -38,6 +40,9 @@ interface ScheduleRow {
   id: string;
   installment: number;
   payment_date: string;
+  period_start: string;
+  period_end: string;
+  months: number;
   amount: number;
   status: "مدفوع" | "متأخر" | "مستحق";
   receipt_number: string | null;
@@ -48,6 +53,7 @@ function ContractDetail() {
   const { id } = Route.useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const scheduleRef = useRef<HTMLDivElement>(null);
 
   const { data: contracts = [], isLoading } = useQuery({ queryKey: ["contracts"], queryFn: getContracts });
   const { data: payments = [] } = useQuery({ queryKey: ["payments"], queryFn: getPayments });
@@ -109,6 +115,10 @@ function ContractDetail() {
     while (!isAfter(current, end)) {
       const dateStr = format(current, "yyyy-MM-dd");
       const existing = paymentsByDate.get(dateStr);
+      const nextStart = addMonths(current, monthsPerPeriod);
+      // Period covered ends the day before the next installment (or contract end, whichever is earlier)
+      const rawEnd = subDays(nextStart, 1);
+      const periodEndActual = isAfter(rawEnd, end) ? end : rawEnd;
 
       let status: ScheduleRow["status"];
       if (existing?.status === "مدفوع") {
@@ -123,6 +133,9 @@ function ContractDetail() {
         id: dateStr,
         installment,
         payment_date: dateStr,
+        period_start: dateStr,
+        period_end: format(periodEndActual, "yyyy-MM-dd"),
+        months: monthsPerPeriod,
         amount,
         status,
         receipt_number: existing?.receipt_number ?? null,
@@ -165,6 +178,51 @@ function ContractDetail() {
   const totalScheduled = schedule.reduce((s, r) => s + r.amount, 0);
   const totalPaid = paidRows.reduce((s, r) => s + r.amount, 0);
   const totalDue = dueRows.reduce((s, r) => s + r.amount, 0);
+
+  const monthsPerPeriod = schedule[0]?.months ?? 1;
+  const perPaymentAmount = contract.rent_amount * monthsPerPeriod;
+  const firstPeriod = schedule[0];
+
+  const handleExportPdf = async () => {
+    const node = scheduleRef.current;
+    if (!node) return;
+    toast.info("جاري تجهيز ملف PDF...");
+    try {
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = margin;
+      pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight - margin * 2;
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = margin - (imgHeight - heightLeft);
+        pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight - margin * 2;
+      }
+      pdf.save(`schedule-${contract.number || contract.id}.pdf`);
+      toast.success("تم تصدير الجدول بصيغة PDF");
+    } catch (e: any) {
+      toast.error("فشل التصدير: " + (e?.message || "خطأ غير معروف"));
+    }
+  };
+
+  const freqLabel =
+    monthsPerPeriod === 1 ? "شهري"
+    : monthsPerPeriod === 3 ? "كل 3 شهور"
+    : monthsPerPeriod === 6 ? "كل 6 شهور"
+    : "سنوي";
 
   const fields: CrudField[] = [
     { name: "number", label: "رقم العقد" },
@@ -230,6 +288,31 @@ function ContractDetail() {
         { label: "الحالة", value: <StatusBadge status={getContractStatus(contract.status, contract.end_date)} /> },
       ]} />
 
+      {/* Payment frequency summary */}
+      {firstPeriod && (
+        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <div className="mb-2 text-sm font-semibold text-primary">ملخص دورية الدفع</div>
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <div>
+              <div className="text-xs text-muted-foreground">الدورية</div>
+              <div className="font-semibold">{freqLabel}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">عدد الشهور لكل دفعة</div>
+              <div className="font-semibold">{monthsPerPeriod} شهر</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">فترة أول قسط</div>
+              <div className="font-semibold tabular-nums">{firstPeriod.period_start} → {firstPeriod.period_end}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">مبلغ الدفعة (محسوب)</div>
+              <div className="font-bold text-primary">{egp(perPaymentAmount)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="my-6 grid grid-cols-3 gap-3 text-center">
         <div className="rounded-xl border border-border bg-card p-3">
@@ -250,16 +333,23 @@ function ContractDetail() {
       </div>
 
       {/* Full schedule table */}
-      <SectionTitle>جدول الدفعات الكامل</SectionTitle>
+      <div className="mt-6 flex items-center justify-between">
+        <SectionTitle>جدول الدفعات الكامل</SectionTitle>
+        <Button variant="outline" size="sm" className="gap-1" onClick={handleExportPdf} disabled={schedule.length === 0}>
+          <FileDown className="h-4 w-4" /> تصدير PDF
+        </Button>
+      </div>
       {schedule.length === 0 ? (
         <EmptyState>لا يمكن حساب الجدول — تحقق من تواريخ العقد.</EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div ref={scheduleRef} className="overflow-x-auto rounded-xl border border-border bg-card">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-right">
                 <th className="px-4 py-3 font-semibold">#</th>
-                <th className="px-4 py-3 font-semibold">تاريخ الاستحقاق</th>
+                <th className="px-4 py-3 font-semibold">بداية الفترة</th>
+                <th className="px-4 py-3 font-semibold">نهاية الفترة</th>
+                <th className="px-4 py-3 font-semibold">عدد الشهور</th>
                 <th className="px-4 py-3 font-semibold">المبلغ</th>
                 <th className="px-4 py-3 font-semibold">الإيصال</th>
                 <th className="px-4 py-3 font-semibold">الطريقة</th>
@@ -280,7 +370,9 @@ function ContractDetail() {
                   }`}
                 >
                   <td className="px-4 py-3 font-bold text-muted-foreground">{row.installment}</td>
-                  <td className="px-4 py-3 tabular-nums">{row.payment_date}</td>
+                  <td className="px-4 py-3 tabular-nums">{row.period_start}</td>
+                  <td className="px-4 py-3 tabular-nums">{row.period_end}</td>
+                  <td className="px-4 py-3 tabular-nums">{row.months}</td>
                   <td className="px-4 py-3 font-semibold">{egp(row.amount)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{row.receipt_number || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{row.payment_method || "—"}</td>
