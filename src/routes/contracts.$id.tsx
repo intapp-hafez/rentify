@@ -17,7 +17,7 @@ import { getUnits } from "@/api/units";
 import { getTenants } from "@/api/tenants";
 import {
   isBefore, startOfDay, addMonths, addQuarters,
-  addYears, parseISO, isAfter, format,
+  addYears, parseISO, isAfter, format, subDays,
 } from "date-fns";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -115,11 +115,10 @@ function ContractDetail() {
     while (!isAfter(current, end)) {
       const dateStr = format(current, "yyyy-MM-dd");
       const existing = paymentsByDate.get(dateStr);
-      const periodEndDate = addMonths(current, monthsPerPeriod);
-      // The period covered by this installment ends the day before the next installment
-      const periodEndActual = isAfter(periodEndDate, end)
-        ? end
-        : addMonths(current, monthsPerPeriod);
+      const nextStart = addMonths(current, monthsPerPeriod);
+      // Period covered ends the day before the next installment (or contract end, whichever is earlier)
+      const rawEnd = subDays(nextStart, 1);
+      const periodEndActual = isAfter(rawEnd, end) ? end : rawEnd;
 
       let status: ScheduleRow["status"];
       if (existing?.status === "مدفوع") {
