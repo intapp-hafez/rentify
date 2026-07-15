@@ -94,7 +94,12 @@ function ContractDetail() {
     const start = parseISO(contract.start_date);
     const end = parseISO(contract.end_date);
     const freq = contract.payment_frequency;
-    const amount = contract.rent_amount;
+    const monthsPerPeriod =
+      freq === "quarterly" || freq === "كل 3 شهور" || freq === "ربع سنوي" ? 3
+      : freq === "semiannual" || freq === "كل 6 شهور" ? 6
+      : freq === "yearly" || freq === "سنوي" ? 12
+      : 1;
+    const amount = contract.rent_amount * monthsPerPeriod;
     const today = startOfDay(new Date());
 
     const rows: ScheduleRow[] = [];
@@ -125,9 +130,7 @@ function ContractDetail() {
       });
 
       installment++;
-      if (freq === "monthly" || freq === "شهري") current = addMonths(current, 1);
-      else if (freq === "quarterly" || freq === "ربع سنوي") current = addQuarters(current, 1);
-      else current = addYears(current, 1);
+      current = addMonths(current, monthsPerPeriod);
     }
 
     return rows;
@@ -171,6 +174,17 @@ function ContractDetail() {
     { name: "end_date", label: "تاريخ النهاية", type: "date" },
     { name: "rent_amount", label: "الإيجار (شهري)", type: "number" },
     { name: "deposit", label: "التأمين", type: "number" },
+    {
+      name: "payment_frequency",
+      label: "دورية الدفع",
+      type: "select",
+      options: [
+        { value: "monthly", label: "شهري" },
+        { value: "quarterly", label: "كل 3 شهور" },
+        { value: "semiannual", label: "كل 6 شهور" },
+        { value: "yearly", label: "سنوي" },
+      ],
+    },
     { name: "status", label: "الحالة", type: "select", options: contractStatuses },
   ];
 
