@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, FileText, Wallet,
-  Wrench, BarChart3, Settings, KeyRound, ChevronLeft, Bell, LogOut
+  Wrench, BarChart3, Settings, KeyRound, ChevronLeft, Bell, LogOut, Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +27,7 @@ const sections: { title?: string; items: NavItem[] }[] = [
     items: [
       { label: "العقود", to: "/contracts", icon: FileText },
       { label: "التحصيلات", to: "/payments", icon: Wallet },
+      { label: "التأمينات", to: "/deposits", icon: Shield },
       { label: "الصيانة", to: "/maintenance", icon: Wrench },
       { label: "الإشعارات", to: "/notifications", icon: Bell },
     ],
@@ -94,9 +95,7 @@ const sections: { title?: string; items: NavItem[] }[] = [
   
         <div className="border-t border-sidebar-border p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sm font-bold uppercase">
-              {user?.email?.charAt(0) || "م"}
-            </div>
+            <img src="/logo.png" alt="Avatar" className="h-9 w-9 rounded-full bg-white p-1" />
             <div className="text-xs">
               <p className="font-semibold max-w-[120px] truncate">{user?.user_metadata?.full_name || "مدير النظام"}</p>
               <p className="text-sidebar-foreground/60 max-w-[120px] truncate" title={user?.email}>{user?.email || "غير مسجل"}</p>

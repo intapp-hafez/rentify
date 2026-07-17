@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -13,17 +13,18 @@ export function DataTable<T extends { id: string }>({
   rows,
   onRowClick,
   page,
-  pageSize,
+  defaultPageSize,
   onPageChange,
 }: {
   columns: Column<T>[];
   rows: T[];
   onRowClick?: (row: T) => void;
   page?: number;
-  pageSize?: number;
+  defaultPageSize?: number;
   onPageChange?: (page: number) => void;
 }) {
-  const isPaginated = page !== undefined && pageSize !== undefined && onPageChange !== undefined;
+  const [pageSize, setPageSize] = useState(defaultPageSize || 10);
+  const isPaginated = page !== undefined && onPageChange !== undefined;
 
   const paginatedRows = useMemo(() => {
     if (!isPaginated) return rows;
@@ -76,9 +77,28 @@ export function DataTable<T extends { id: string }>({
 
       {isPaginated && rows.length > 0 && (
         <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 sm:flex-row">
-          <span className="text-sm text-muted-foreground">
-            عرض {startItem}–{endItem} من {rows.length}
-          </span>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span>
+              عرض {startItem}–{endItem} من {rows.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span>العدد:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  onPageChange(1);
+                }}
+                className="h-7 cursor-pointer rounded border border-border bg-background px-1 py-0 text-xs outline-none focus:border-ring"
+              >
+                {[5, 10, 15, 25, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"

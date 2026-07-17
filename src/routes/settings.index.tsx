@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Save, LogOut, Plus, X, Pencil, Check } from "lucide-react";
+import { Mail, Save, LogOut, Plus, X, Pencil, Check, KeyRound } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,6 +135,10 @@ function SettingsIndex() {
   const [phone, setPhone] = useState(user?.user_metadata?.phone || "");
   const [profileSaving, setProfileSaving] = useState(false);
 
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+
   const { data: settings, isLoading } = useQuery({
     queryKey: ["settings"],
     queryFn: getAllSettings,
@@ -157,6 +161,29 @@ function SettingsIndex() {
     setProfileSaving(false);
     if (error) toast.error(error.message);
     else toast.success("تم حفظ بيانات الحساب بنجاح");
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("كلمتا المرور غير متطابقتين");
+      return;
+    }
+    setPasswordSaving(true);
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    setPasswordSaving(false);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("تم تغيير كلمة المرور بنجاح، يرجى تسجيل الدخول مجدداً");
+      setNewPassword("");
+      setConfirmPassword("");
+      await handleSignOut();
+    }
   };
 
   const handleSignOut = async () => {
@@ -197,6 +224,43 @@ function SettingsIndex() {
           </Button>
           <Button variant="outline" className="gap-1 text-destructive hover:text-destructive" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" /> تسجيل الخروج
+          </Button>
+        </div>
+      </Card>
+
+      {/* ─── تغيير كلمة المرور ─── */}
+      <Card className="mt-5 p-5 border-destructive/20 bg-destructive/5">
+        <h3 className="mb-4 font-bold text-foreground flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-destructive" />
+          تغيير كلمة المرور
+        </h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <Label className="mb-1.5 block text-sm">كلمة المرور الجديدة</Label>
+            <Input 
+              type="password" 
+              value={newPassword} 
+              onChange={(e) => setNewPassword(e.target.value)} 
+              placeholder="••••••••" 
+            />
+          </div>
+          <div>
+            <Label className="mb-1.5 block text-sm">تأكيد كلمة المرور</Label>
+            <Input 
+              type="password" 
+              value={confirmPassword} 
+              onChange={(e) => setConfirmPassword(e.target.value)} 
+              placeholder="••••••••" 
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex gap-2">
+          <Button 
+            className="gap-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground" 
+            onClick={handleChangePassword} 
+            disabled={passwordSaving || !newPassword || !confirmPassword}
+          >
+            <Save className="h-4 w-4" /> {passwordSaving ? "جارٍ الحفظ..." : "تحديث كلمة المرور"}
           </Button>
         </div>
       </Card>

@@ -231,7 +231,7 @@ function Tenants() {
           rows={filtered}
           onRowClick={(r) => navigate({ to: "/tenants/$id", params: { id: r.id } })}
           page={page}
-          pageSize={PAGE_SIZE}
+          defaultPageSize={PAGE_SIZE}
           onPageChange={setPage}
         />
       )}

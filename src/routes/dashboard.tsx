@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Building2, KeyRound, FileText, Wallet,
   TrendingUp, AlertTriangle, Home, Wrench, TrendingDown,
+  Banknote, CalendarClock
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
@@ -42,7 +43,7 @@ function Dashboard() {
   return (
     <AppLayout title="لوحة التحكم" subtitle="نظرة عامة على أداء محفظتك العقارية">
       {/* Row 1: Core KPIs */}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
         <KpiCard
           label="إجمالي الوحدات"
           value={stats?.units.total.toString() || "0"}
@@ -71,10 +72,17 @@ function Dashboard() {
           icon={TrendingDown}
           tone="warning"
         />
+        <KpiCard
+          label="تحصيلات الشهر القادم"
+          value={egp(stats?.payments.nextMonth || 0)}
+          hint="مبالغ متوقع تحصيلها"
+          icon={CalendarClock}
+          tone="accent"
+        />
       </div>
 
       {/* Row 2: Secondary KPIs */}
-      <div className="mt-4 grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-4 xl:grid-cols-5">
         <KpiCard label="نسبة الإشغال" value={`${occupancyRate}%`} icon={Home} tone="success" />
         <KpiCard label="متوسط الإيجار" value={egp(stats?.units.avgRent || 0)} icon={TrendingUp} tone="accent" />
         <KpiCard label="تحت الصيانة" value={stats?.units.maintenance.toString() || "0"} icon={Wrench} tone="warning" />
@@ -85,6 +93,15 @@ function Dashboard() {
             hint="خلال 60 يوم — اضغط للتفاصيل"
             icon={AlertTriangle}
             tone="warning"
+          />
+        </Link>
+        <Link to="/deposits" className="block">
+          <KpiCard
+            label="إجمالي التأمينات"
+            value={egp(stats?.deposits.totalHeld || 0)}
+            hint="المبالغ المحتجزة حالياً"
+            icon={Banknote}
+            tone="success"
           />
         </Link>
       </div>

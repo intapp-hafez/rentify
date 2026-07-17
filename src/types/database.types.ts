@@ -9,6 +9,51 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      deposits: {
+        Row: {
+          id: string
+          contract_id: string
+          tenant_id: string
+          amount: number
+          status: 'held' | 'returned' | 'deducted' | 'transferred'
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          contract_id: string
+          tenant_id: string
+          amount: number
+          status?: 'held' | 'returned' | 'deducted' | 'transferred'
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          contract_id?: string
+          tenant_id?: string
+          amount?: number
+          status?: 'held' | 'returned' | 'deducted' | 'transferred'
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposits_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       profiles: {
         Row: {
           id: string

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { ArrowRight, Pencil, Trash2, FileDown } from "lucide-react";
+import { ArrowRight, Pencil, Trash2, FileDown, ShieldCheck } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getContracts, updateContract, deleteContract } from "@/api/contracts";
 import { getPayments, type PaymentWithRelations } from "@/api/payments";
+import { getDepositByContractId, updateDeposit } from "@/api/deposits";
 import { getUnits } from "@/api/units";
 import { getTenants } from "@/api/tenants";
 import {
@@ -81,6 +82,22 @@ function ContractDetail() {
 
   // ALL hooks must be called before any conditional return
   const contract = contracts.find((c) => c.id === id);
+
+  const { data: depositInfo } = useQuery({
+    queryKey: ["contract-deposit", id],
+    queryFn: () => getDepositByContractId(id),
+    enabled: !!contract && (contract.deposit || 0) > 0,
+  });
+
+  const settleDepositMutation = useMutation({
+    mutationFn: updateDeposit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contract-deposit", id] });
+      queryClient.invalidateQueries({ queryKey: ["deposits"] });
+      toast.success("تم تسوية التأمين بنجاح");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const contractPayments = useMemo(
     () => payments.filter((p) => p.contract_id === id),
@@ -227,7 +244,20 @@ function ContractDetail() {
   const fields: CrudField[] = [
     { name: "number", label: "رقم العقد" },
     { name: "tenant_id", label: "المستأجر", type: "select", options: tenants.map((t) => ({ value: t.id, label: t.full_name })) },
-    { name: "unit_id", label: "الوحدة", type: "select", options: units.map((u) => ({ value: u.id, label: `${u.title} - ${u.number || ""}` })) },
+    { 
+      name: "unit_id", 
+      label: "الوحدة", 
+      type: "select", 
+      options: units.map((u) => ({ value: u.id, label: `${u.title} - ${u.number || ""}` })),
+      onChange: (val, setValues) => {
+        const unit = units.find(u => u.id === val);
+        setValues((prev: any) => ({
+          ...prev,
+          unit_id: val,
+          ...(unit?.rent_price ? { rent_amount: unit.rent_price } : {})
+        }));
+      }
+    },
     { name: "start_date", label: "تاريخ البداية", type: "date" },
     { name: "end_date", label: "تاريخ النهاية", type: "date" },
     { name: "rent_amount", label: "الإيجار (شهري)", type: "number" },
@@ -242,6 +272,29 @@ function ContractDetail() {
         { value: "semiannual", label: "كل 6 شهور" },
         { value: "yearly", label: "سنوي" },
       ],
+    },
+    {
+      name: "total_rent_sum",
+      label: "",
+      type: "custom",
+      colSpan: 2,
+      hidden: (v) => !v.payment_frequency || v.payment_frequency === "monthly" || !v.rent_amount,
+      render: (v) => {
+        const rent = Number(v.rent_amount) || 0;
+        let multiplier = 1;
+        if (v.payment_frequency === "quarterly") multiplier = 3;
+        else if (v.payment_frequency === "semiannual") multiplier = 6;
+        else if (v.payment_frequency === "yearly") multiplier = 12;
+        
+        return (
+          <div className="rounded-md bg-primary/10 p-3 flex items-center justify-between">
+            <span className="text-sm font-semibold text-primary">
+              إجمالي الإيجار ({v.payment_frequency === "quarterly" ? "كل 3 شهور" : v.payment_frequency === "semiannual" ? "كل 6 شهور" : "سنوي"})
+            </span>
+            <span className="font-bold text-primary">{(rent * multiplier).toLocaleString()} ج.م</span>
+          </div>
+        );
+      }
     },
     { name: "status", label: "الحالة", type: "select", options: contractStatuses },
   ];
@@ -269,6 +322,27 @@ function ContractDetail() {
             onConfirm={() => deleteMutation.mutate(contract.id)}
             trigger={<Button variant="destructive" size="sm" className="gap-1"><Trash2 className="h-4 w-4" /> حذف</Button>}
           />
+          {depositInfo && depositInfo.status === 'held' && (
+            <CrudDialog
+              title="تسوية التأمين"
+              fields={[
+                { name: "status", label: "حالة التأمين", type: "select", options: [
+                  { value: "returned", label: "مسترد بالكامل" },
+                  { value: "deducted", label: "مخصوم (جزئياً أو كلياً)" },
+                  { value: "transferred", label: "مُرحّل لعقد آخر" }
+                ]},
+                { name: "notes", label: "ملاحظات الخصم / الترحيل", type: "textarea", colSpan: 2 }
+              ]}
+              initial={{ status: "returned", notes: "" }}
+              onSubmit={(v) => settleDepositMutation.mutate({ id: depositInfo.id, ...v } as any)}
+              submitLabel="حفظ التسوية"
+              trigger={
+                <Button variant="outline" size="sm" className="gap-1 text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:text-orange-700">
+                  <ShieldCheck className="h-4 w-4" /> تسوية التأمين
+                </Button>
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -284,7 +358,18 @@ function ContractDetail() {
           : contract.payment_frequency === "semiannual" ? "كل 6 شهور"
           : "سنوي" },
         { label: "الإيجار", value: egp(contract.rent_amount) },
-        { label: "التأمين", value: egp(contract.deposit || 0) },
+        { label: "التأمين", value: (
+          <div className="flex items-center gap-2">
+            {egp(contract.deposit || 0)}
+            {depositInfo && (
+              <StatusBadge status={
+                depositInfo.status === 'held' ? 'محتجز' :
+                depositInfo.status === 'returned' ? 'مسترد' :
+                depositInfo.status === 'deducted' ? 'مخصوم' : 'مُرحّل'
+              } />
+            )}
+          </div>
+        ) },
         { label: "الحالة", value: <StatusBadge status={getContractStatus(contract.status, contract.end_date)} /> },
       ]} />
 

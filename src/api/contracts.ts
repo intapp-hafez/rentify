@@ -33,6 +33,17 @@ export const addContract = async (contract: ContractInsert): Promise<ContractRow
   if (error) {
     throw new Error(error.message);
   }
+
+  if (data.deposit && data.deposit > 0) {
+    await supabase.from('deposits').insert([{
+      contract_id: data.id,
+      tenant_id: data.tenant_id,
+      amount: data.deposit,
+      status: 'held',
+      notes: 'تأمين العقد'
+    }]);
+  }
+
   return data;
 };
 

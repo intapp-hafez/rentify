@@ -18,6 +18,7 @@ import { Route as PaymentsRouteImport } from './routes/payments'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DepositsRouteImport } from './routes/deposits'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContractsRouteImport } from './routes/contracts'
 import { Route as IndexRouteImport } from './routes/index'
@@ -73,6 +74,11 @@ const MaintenanceRoute = MaintenanceRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepositsRoute = DepositsRouteImport.update({
+  id: '/deposits',
+  path: '/deposits',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/contracts': typeof ContractsRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/deposits': typeof DepositsRoute
   '/login': typeof LoginRoute
   '/maintenance': typeof MaintenanceRoute
   '/notifications': typeof NotificationsRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/deposits': typeof DepositsRoute
   '/login': typeof LoginRoute
   '/maintenance': typeof MaintenanceRoute
   '/notifications': typeof NotificationsRoute
@@ -176,6 +184,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/contracts': typeof ContractsRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/deposits': typeof DepositsRoute
   '/login': typeof LoginRoute
   '/maintenance': typeof MaintenanceRoute
   '/notifications': typeof NotificationsRoute
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/'
     | '/contracts'
     | '/dashboard'
+    | '/deposits'
     | '/login'
     | '/maintenance'
     | '/notifications'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/deposits'
     | '/login'
     | '/maintenance'
     | '/notifications'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/'
     | '/contracts'
     | '/dashboard'
+    | '/deposits'
     | '/login'
     | '/maintenance'
     | '/notifications'
@@ -263,6 +275,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContractsRoute: typeof ContractsRouteWithChildren
   DashboardRoute: typeof DashboardRoute
+  DepositsRoute: typeof DepositsRoute
   LoginRoute: typeof LoginRoute
   MaintenanceRoute: typeof MaintenanceRoute
   NotificationsRoute: typeof NotificationsRoute
@@ -337,6 +350,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/deposits': {
+      id: '/deposits'
+      path: '/deposits'
+      fullPath: '/deposits'
+      preLoaderRoute: typeof DepositsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -476,6 +496,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContractsRoute: ContractsRouteWithChildren,
   DashboardRoute: DashboardRoute,
+  DepositsRoute: DepositsRoute,
   LoginRoute: LoginRoute,
   MaintenanceRoute: MaintenanceRoute,
   NotificationsRoute: NotificationsRoute,
@@ -489,3 +510,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

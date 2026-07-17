@@ -14,10 +14,12 @@ import {
 export interface CrudField {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "select" | "textarea";
+  type?: "text" | "number" | "date" | "select" | "textarea" | "custom";
   options?: string[] | { label: string; value: string }[];
   colSpan?: 1 | 2;
   hidden?: (values: Record<string, any>) => boolean;
+  render?: (values: Record<string, any>) => ReactNode;
+  onChange?: (value: any, setValues: React.Dispatch<React.SetStateAction<Record<string, any>>>) => void;
 }
 
 export function CrudDialog<T extends Record<string, any>>({
@@ -35,13 +37,18 @@ export function CrudDialog<T extends Record<string, any>>({
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, any>>(initial ?? {});
 
-  function set(name: string, v: any) {
-    setValues((prev) => ({ ...prev, [name]: v }));
+  function set(name: string, v: any, field?: CrudField) {
+    if (field?.onChange) {
+      field.onChange(v, setValues);
+    } else {
+      setValues((prev) => ({ ...prev, [name]: v }));
+    }
   }
 
   function submit() {
     const out: Record<string, any> = {};
     for (const f of fields) {
+      if (f.type === "custom") continue;
       const raw = values[f.name];
       out[f.name] = f.type === "number" ? Number(raw) || 0 : raw ?? "";
     }
@@ -69,7 +76,7 @@ export function CrudDialog<T extends Record<string, any>>({
             <div key={f.name} className={f.colSpan === 2 ? "col-span-2" : "col-span-2 sm:col-span-1"}>
               <Label className="mb-1.5 block text-sm">{f.label}</Label>
               {f.type === "select" ? (
-                <Select value={values[f.name] ?? ""} onValueChange={(v) => set(f.name, v)}>
+                <Select value={values[f.name] ?? ""} onValueChange={(v) => set(f.name, v, f)}>
                   <SelectTrigger><SelectValue placeholder="اختر..." /></SelectTrigger>
                   <SelectContent>
                     {f.options?.map((o) => {
@@ -82,14 +89,16 @@ export function CrudDialog<T extends Record<string, any>>({
               ) : f.type === "textarea" ? (
                 <Textarea
                   value={values[f.name] ?? ""}
-                  onChange={(e) => set(f.name, e.target.value)}
+                  onChange={(e) => set(f.name, e.target.value, f)}
                   className="resize-none"
                 />
+              ) : f.type === "custom" && f.render ? (
+                f.render(values)
               ) : (
                 <Input
                   type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
                   value={values[f.name] ?? ""}
-                  onChange={(e) => set(f.name, e.target.value)}
+                  onChange={(e) => set(f.name, e.target.value, f)}
                 />
               )}
             </div>

@@ -284,7 +284,7 @@ function Units() {
           rows={filtered}
           onRowClick={(r) => navigate({ to: "/units/$id", params: { id: r.id } })}
           page={page}
-          pageSize={PAGE_SIZE}
+          defaultPageSize={PAGE_SIZE}
           onPageChange={setPage}
         />
       )}

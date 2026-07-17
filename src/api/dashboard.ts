@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/database.types';
-import { addDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { addDays, format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 
 export interface DashboardStats {
   units: {
@@ -17,6 +17,10 @@ export interface DashboardStats {
   payments: {
     thisMonth: number;
     overdue: number;
+    nextMonth: number;
+  };
+  deposits: {
+    totalHeld: number;
   };
   monthly: { month: string; value: number }[];
   topCities: { name: string; count: number; pct: number }[];
@@ -29,6 +33,8 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
   const todayStr = format(today, 'yyyy-MM-dd');
   const monthStart = format(startOfMonth(today), 'yyyy-MM-dd');
   const monthEnd = format(endOfMonth(today), 'yyyy-MM-dd');
+  const nextMonthStart = format(startOfMonth(addMonths(today, 1)), 'yyyy-MM-dd');
+  const nextMonthEnd = format(endOfMonth(addMonths(today, 1)), 'yyyy-MM-dd');
 
   const [
     { count: totalUnits },
@@ -40,6 +46,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     { data: allUnits },
     { data: payments },
     { data: recentMaintenance },
+    { data: depositsData },
   ] = await Promise.all([
     supabase.from('units').select('*', { count: 'exact', head: true }),
     supabase.from('units').select('*', { count: 'exact', head: true }).eq('status', 'rented'),
@@ -51,6 +58,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     supabase.from('units').select('rent_price, city'),
     supabase.from('payments').select('amount, status, payment_date'),
     supabase.from('maintenance').select('*, units(number, title)').order('created_at', { ascending: false }).limit(5),
+    supabase.from('deposits').select('amount').eq('status', 'held'),
   ]);
 
   // Average rent across all units
@@ -82,6 +90,12 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
   const overdue = allPayments
     .filter((p: any) => p.status === 'متأخر')
     .reduce((s: number, p: any) => s + (p.amount || 0), 0);
+  const nextMonth = allPayments
+    .filter((p: any) => p.payment_date >= nextMonthStart && p.payment_date <= nextMonthEnd)
+    .reduce((s: number, p: any) => s + (p.amount || 0), 0);
+
+  // Deposits
+  const totalHeld = (depositsData || []).reduce((s: number, d: any) => s + (d.amount || 0), 0);
 
   // Monthly revenue (last 6 months)
   const monthly: { month: string; value: number }[] = [];
@@ -107,7 +121,8 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       active: activeContracts || 0,
       expiringSoon: expiringSoon || 0,
     },
-    payments: { thisMonth, overdue },
+    payments: { thisMonth, overdue, nextMonth },
+    deposits: { totalHeld },
     monthly,
     topCities,
     maintenance: (recentMaintenance as any) || [],

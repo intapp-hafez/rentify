@@ -93,7 +93,15 @@ function Contracts() {
       name: "unit_id", 
       label: "الوحدة", 
       type: "select", 
-      options: units.map((u) => ({ value: u.id, label: `${u.title} - ${u.number || ''}` })) 
+      options: units.map((u) => ({ value: u.id, label: `${u.title} - ${u.number || ''}` })),
+      onChange: (val, setValues) => {
+        const unit = units.find(u => u.id === val);
+        setValues((prev: any) => ({
+          ...prev,
+          unit_id: val,
+          ...(unit?.rent_price ? { rent_amount: unit.rent_price } : {})
+        }));
+      }
     },
     { name: "start_date", label: "تاريخ البداية", type: "date" },
     { name: "end_date", label: "تاريخ النهاية", type: "date" },
@@ -109,6 +117,29 @@ function Contracts() {
         { value: "semiannual", label: "كل 6 شهور" },
         { value: "yearly", label: "سنوي" },
       ],
+    },
+    {
+      name: "total_rent_sum",
+      label: "",
+      type: "custom",
+      colSpan: 2,
+      hidden: (v) => !v.payment_frequency || v.payment_frequency === "monthly" || !v.rent_amount,
+      render: (v) => {
+        const rent = Number(v.rent_amount) || 0;
+        let multiplier = 1;
+        if (v.payment_frequency === "quarterly") multiplier = 3;
+        else if (v.payment_frequency === "semiannual") multiplier = 6;
+        else if (v.payment_frequency === "yearly") multiplier = 12;
+        
+        return (
+          <div className="rounded-md bg-primary/10 p-3 flex items-center justify-between">
+            <span className="text-sm font-semibold text-primary">
+              إجمالي الإيجار ({v.payment_frequency === "quarterly" ? "كل 3 شهور" : v.payment_frequency === "semiannual" ? "كل 6 شهور" : "سنوي"})
+            </span>
+            <span className="font-bold text-primary">{(rent * multiplier).toLocaleString()} ج.م</span>
+          </div>
+        );
+      }
     },
     { name: "status", label: "الحالة", type: "select", options: contractStatuses },
   ];
