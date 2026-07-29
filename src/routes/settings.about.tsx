@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Building2, Code2, Tag, User } from "lucide-react";
+import { Building2, Tag, User, ShieldAlert } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 export const Route = createFileRoute("/settings/about")({
@@ -23,11 +23,6 @@ const appInfo = [
     label: "نسخة التطبيق",
     value: "v1.0.0",
   },
-  {
-    icon: Code2,
-    label: "التقنية",
-    value: "React + TanStack + Tailwind CSS",
-  },
 ];
 
 function AboutPage() {
@@ -46,6 +41,26 @@ function AboutPage() {
             <h2 className="text-2xl font-extrabold text-foreground">Rentify</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               نظام متكامل لإدارة العقارات والإيجارات والعقود والتحصيلات
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Declaration Card */}
+      <Card className="border-amber-500/40 bg-amber-500/5 p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600">
+            <ShieldAlert className="h-5 w-5" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-base font-bold text-amber-700 dark:text-amber-500">
+              إقرار وتنويه الخدمة / Declaration
+            </h3>
+            <p className="text-sm font-semibold leading-relaxed text-foreground">
+              عزيزي العميل، اشتراكك الحالي لا يشمل: النسخ الاحتياطي، الاستعادة، والحماية المتقدمة. لذا يرجى التأكد من أخذ نسخ احتياطية بشكل دوري.
+            </p>
+            <p className="text-xs font-medium text-muted-foreground leading-relaxed">
+              Dear client your current subscription does not include Backup, Restore, and Advanced Security, so kindly make sure of taking backups regularly.
             </p>
           </div>
         </div>
@@ -76,7 +91,7 @@ function AboutPage() {
         <p className="text-sm text-muted-foreground leading-relaxed">
           © 2026 Rentify. جميع الحقوق محفوظة. تم تطوير هذا النظام لتبسيط إدارة العقارات
           والإيجارات للسوق المصري، ويوفر أدوات متكاملة لمتابعة العقود والدفعات والصيانة
-          والتقارير في منصة واحدة.
+          والتقارير في نظام واحد.
         </p>
       </Card>
     </div>

@@ -1,12 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/database.types';
 
-type ContractRow = Database['public']['Tables']['contracts']['Row'];
-type ContractInsert = Database['public']['Tables']['contracts']['Insert'];
-type ContractUpdate = Database['public']['Tables']['contracts']['Update'];
+type ContractRow = Database['public']['Tables']['contracts']['Row'] & { attachment_url?: string | null };
+type ContractInsert = Database['public']['Tables']['contracts']['Insert'] & { attachment_url?: string | null };
+type ContractUpdate = Database['public']['Tables']['contracts']['Update'] & { attachment_url?: string | null };
 
 // Extended type for joined queries
 export type ContractWithRelations = ContractRow & {
+  attachment_url?: string | null;
   units: { title: string; number: string | null } | null;
   tenants: { full_name: string } | null;
 };
@@ -26,7 +27,7 @@ export const getContracts = async (): Promise<ContractWithRelations[]> => {
 export const addContract = async (contract: ContractInsert): Promise<ContractRow> => {
   const { data, error } = await supabase
     .from('contracts')
-    .insert([contract])
+    .insert([contract as any])
     .select()
     .single();
 
@@ -50,7 +51,7 @@ export const addContract = async (contract: ContractInsert): Promise<ContractRow
 export const updateContract = async ({ id, ...updateData }: ContractUpdate & { id: string }): Promise<ContractRow> => {
   const { data, error } = await supabase
     .from('contracts')
-    .update(updateData)
+    .update(updateData as any)
     .eq('id', id)
     .select()
     .single();

@@ -4,6 +4,7 @@ import { Search, Bell, Menu, X, Plus } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
 import { GlobalSearch } from "./GlobalSearch";
 import { SubscriptionBadge } from "./SubscriptionBadge";
+import { SubscriptionAlertModal } from "./SubscriptionAlertModal";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -24,6 +25,7 @@ export function AppLayout({ title, subtitle, children }: { title: string; subtit
 
   return (
     <div className="flex min-h-screen w-full bg-background">
+      <SubscriptionAlertModal />
       <div className="hidden border-l border-border lg:block">
         <AppSidebar />
       </div>

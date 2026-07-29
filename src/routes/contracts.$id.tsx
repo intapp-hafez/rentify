@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { ArrowRight, Pencil, Trash2, FileDown, ShieldCheck } from "lucide-react";
+import { ArrowRight, Pencil, Trash2, FileDown, ShieldCheck, FileText, Eye } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -297,6 +297,7 @@ function ContractDetail() {
       }
     },
     { name: "status", label: "الحالة", type: "select", options: contractStatuses },
+    { name: "attachment_url", label: "مستند العقد المرفق (PDF / صورة)", type: "file", colSpan: 2 },
   ];
 
   return (
@@ -371,6 +372,30 @@ function ContractDetail() {
           </div>
         ) },
         { label: "الحالة", value: <StatusBadge status={getContractStatus(contract.status, contract.end_date)} /> },
+        {
+          label: "مستند العقد المرفق",
+          value: contract.attachment_url ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 text-primary border-primary/30 hover:bg-primary/10 h-7 text-xs"
+              onClick={() => {
+                const win = window.open();
+                if (win) {
+                  if (contract.attachment_url?.startsWith("data:application/pdf")) {
+                    win.document.write(`<iframe src="${contract.attachment_url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                  } else {
+                    win.document.write(`<img src="${contract.attachment_url}" style="max-width:100%; height:auto; display:block; margin:20px auto; border-radius:8px;" />`);
+                  }
+                }
+              }}
+            >
+              <FileText className="h-3.5 w-3.5" /> معاينة المستند
+            </Button>
+          ) : (
+            <span className="text-muted-foreground text-xs">لا يوجد مرفق</span>
+          ),
+        },
       ]} />
 
       {/* Payment frequency summary */}

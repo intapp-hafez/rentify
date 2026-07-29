@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useRef } from "react";
-import { Plus, Pencil, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Upload, FileSpreadsheet, FileText } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
@@ -142,6 +142,7 @@ function Contracts() {
       }
     },
     { name: "status", label: "الحالة", type: "select", options: contractStatuses },
+    { name: "attachment_url", label: "مستند العقد المرفق (PDF / صورة)", type: "file", colSpan: 2 },
   ];
 
   const handleExport = () => {
@@ -218,6 +219,26 @@ function Contracts() {
     {
       key: "actions", header: "إجراءات", render: (r) => (
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          {r.attachment_url && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-primary hover:bg-primary/10"
+              title="عرض/تنزيل العقد المرفق"
+              onClick={() => {
+                const win = window.open();
+                if (win) {
+                  if (r.attachment_url?.startsWith("data:application/pdf")) {
+                    win.document.write(`<iframe src="${r.attachment_url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                  } else {
+                    win.document.write(`<img src="${r.attachment_url}" style="max-width:100%; height:auto; display:block; margin:20px auto; border-radius:8px;" />`);
+                  }
+                }
+              }}
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
+          )}
           <CrudDialog<Omit<ContractWithRelations, "id" | "created_at" | "units" | "tenants">> 
             title="تعديل عقد" 
             fields={fields} 

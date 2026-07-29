@@ -31,7 +31,7 @@ function Index() {
             نظام Rentify لإدارة العقارات
           </h1>
           <p className="max-w-md text-lg text-primary-foreground/80">
-            إدارة العقارات والإيجارات بسهولة واحترافية — عقود، تحصيلات، صيانة وتقارير ذكية في منصة واحدة.
+            إدارة العقارات والإيجارات بسهولة واحترافية — عقود، تحصيلات، صيانة وتقارير ذكية في نظام واحد.
           </p>
           <div className="grid max-w-md grid-cols-3 gap-4 pt-4">
             {[
@@ -69,7 +69,7 @@ function Index() {
           <div className="space-y-2">
             <label className="text-sm font-semibold text-foreground">البريد الإلكتروني</label>
             <input
-            type="email"
+              type="email"
               defaultValue="admin@rentify.app"
               className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
             />

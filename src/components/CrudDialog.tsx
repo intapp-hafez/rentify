@@ -10,11 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { FileUpload } from "@/components/FileUpload";
 
 export interface CrudField {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "select" | "textarea" | "custom";
+  type?: "text" | "number" | "date" | "select" | "textarea" | "file" | "custom";
   options?: string[] | { label: string; value: string }[];
   colSpan?: 1 | 2;
   hidden?: (values: Record<string, any>) => boolean;
@@ -23,7 +24,7 @@ export interface CrudField {
 }
 
 export function CrudDialog<T extends Record<string, any>>({
-  trigger, title, description, fields, initial, submitLabel = "حفظ", onSubmit, maxWidth = "max-w-lg",
+  trigger, title, description, fields, initial, submitLabel = "حفظ", onSubmit, maxWidth = "max-w-2xl",
 }: {
   trigger: ReactNode;
   title: string;
@@ -66,15 +67,15 @@ export function CrudDialog<T extends Record<string, any>>({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className={maxWidth}>
-        <DialogHeader>
+      <DialogContent className={`${maxWidth} max-h-[90vh] overflow-y-auto`}>
+        <DialogHeader className="pb-1">
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 py-2">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 py-1">
           {visibleFields.map((f) => (
             <div key={f.name} className={f.colSpan === 2 ? "col-span-2" : "col-span-2 sm:col-span-1"}>
-              <Label className="mb-1.5 block text-sm">{f.label}</Label>
+              <Label className="mb-1 block text-xs font-medium">{f.label}</Label>
               {f.type === "select" ? (
                 <Select value={values[f.name] ?? ""} onValueChange={(v) => set(f.name, v, f)}>
                   <SelectTrigger><SelectValue placeholder="اختر..." /></SelectTrigger>
@@ -91,6 +92,11 @@ export function CrudDialog<T extends Record<string, any>>({
                   value={values[f.name] ?? ""}
                   onChange={(e) => set(f.name, e.target.value, f)}
                   className="resize-none"
+                />
+              ) : f.type === "file" ? (
+                <FileUpload
+                  value={values[f.name]}
+                  onChange={(val) => set(f.name, val, f)}
                 />
               ) : f.type === "custom" && f.render ? (
                 f.render(values)

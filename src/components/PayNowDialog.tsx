@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { FileUpload } from "@/components/FileUpload";
 import { addPayment } from "@/api/payments";
 import { useQueryClient } from "@tanstack/react-query";
 import { egp, paymentMethods } from "@/lib/mockData";
@@ -26,6 +27,7 @@ export function PayNowDialog({ contractId, amount, dueDate, installment }: PayNo
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [receipt, setReceipt] = useState("");
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [method, setMethod] = useState(paymentMethods[0]);
   const [notes, setNotes] = useState("");
   const [bankName, setBankName] = useState("");
@@ -56,12 +58,13 @@ export function PayNowDialog({ contractId, amount, dueDate, installment }: PayNo
         receipt_number: receipt.trim(),
         payment_method: method,
         payment_details,
-        receipt_url: null,
+        receipt_url: receiptUrl,
       });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       toast.success(`تم تسجيل القسط #${installment} كمدفوع`);
       setOpen(false);
       setReceipt("");
+      setReceiptUrl(null);
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ أثناء التسجيل");
     } finally {
@@ -74,6 +77,7 @@ export function PayNowDialog({ contractId, amount, dueDate, installment }: PayNo
       setOpen(v); 
       if (v) {
         setReceipt("");
+        setReceiptUrl(null);
         setNotes("");
         setBankName("");
         setAccountNumber("");
@@ -85,63 +89,72 @@ export function PayNowDialog({ contractId, amount, dueDate, installment }: PayNo
           ادفع الآن
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-1">
           <DialogTitle>تسجيل دفعة — قسط #{installment}</DialogTitle>
           <DialogDescription>أدخل رقم الإيصال وطريقة الدفع لتأكيد السداد.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-muted/50 p-3">
+        <div className="space-y-3 py-1">
+          <div className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-muted/50 p-2.5">
             <div>
               <p className="text-xs text-muted-foreground">المبلغ المستحق</p>
-              <p className="mt-1 text-lg font-bold text-foreground">{egp(amount)}</p>
+              <p className="mt-0.5 text-base font-bold text-foreground">{egp(amount)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">تاريخ الاستحقاق</p>
-              <p className="mt-1 font-semibold text-foreground">{dueDate}</p>
+              <p className="mt-0.5 font-semibold text-foreground">{dueDate}</p>
             </div>
           </div>
-          <div>
-            <Label className="mb-1.5 block text-sm">رقم الإيصال</Label>
-            <Input
-              value={receipt}
-              onChange={(e) => setReceipt(e.target.value)}
-              placeholder="مثال: RC-5001"
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-            />
-          </div>
-          <div>
-            <Label className="mb-1.5 block text-sm">طريقة الدفع</Label>
-            <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {paymentMethods.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="mb-1 block text-xs font-medium">رقم الإيصال</Label>
+              <Input
+                value={receipt}
+                onChange={(e) => setReceipt(e.target.value)}
+                placeholder="مثال: RC-5001"
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs font-medium">طريقة الدفع</Label>
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           {method === "تحويل بنكي" && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="mb-1.5 block text-sm">اسم البنك</Label>
+                <Label className="mb-1 block text-xs font-medium">اسم البنك</Label>
                 <Input value={bankName} onChange={(e) => setBankName(e.target.value)} />
               </div>
               <div>
-                <Label className="mb-1.5 block text-sm">رقم الحساب</Label>
+                <Label className="mb-1 block text-xs font-medium">رقم الحساب</Label>
                 <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
               </div>
             </div>
           )}
           {method !== "نقدي" && method !== "تحويل بنكي" && (
             <div>
-              <Label className="mb-1.5 block text-sm">الرقم</Label>
+              <Label className="mb-1 block text-xs font-medium">الرقم</Label>
               <Input value={otherNumber} onChange={(e) => setOtherNumber(e.target.value)} />
             </div>
           )}
           <div>
-            <Label className="mb-1.5 block text-sm">ملاحظات</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
+            <FileUpload
+              label="مرفق الإيصال / السند"
+              value={receiptUrl}
+              onChange={setReceiptUrl}
+            />
+          </div>
+          <div>
+            <Label className="mb-1 block text-xs font-medium">ملاحظات</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none h-16" />
           </div>
         </div>
         <DialogFooter>
