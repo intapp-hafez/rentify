@@ -187,6 +187,7 @@ export interface Database {
           deposit: number | null
           payment_frequency: string
           status: string
+          attachment_url?: string | null
           created_at: string
         }
         Insert: {
@@ -200,6 +201,7 @@ export interface Database {
           deposit?: number | null
           payment_frequency?: string
           status?: string
+          attachment_url?: string | null
           created_at?: string
         }
         Update: {
@@ -213,6 +215,7 @@ export interface Database {
           deposit?: number | null
           payment_frequency?: string
           status?: string
+          attachment_url?: string | null
           created_at?: string
         }
         Relationships: [
