@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DetailGrid, SectionTitle, EmptyState } from "@/components/DetailField";
+import { DataTable, type Column, wrapFourWords } from "@/components/DataTable";
 import { CrudDialog, type CrudField } from "@/components/CrudDialog";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { PayNowDialog } from "@/components/PayNowDialog";
@@ -24,6 +25,13 @@ export const Route = createFileRoute("/units/$id")({
   head: () => ({ meta: [{ title: "تفاصيل الوحدة — Rentify" }] }),
   component: UnitDetail,
 });
+
+const getContractStatus = (status: string | null, endDate: string | null) => {
+  if (status === "نشط" && endDate && isBefore(new Date(endDate), startOfDay(new Date()))) {
+    return "عقد منتهي";
+  }
+  return status || "نشط";
+};
 
 interface ScheduleRow {
   id: string;
@@ -177,6 +185,35 @@ function UnitDetail() {
   const totalPaid = paidRows.reduce((s, r) => s + r.amount, 0);
   const totalScheduled = schedule.reduce((s, r) => s + r.amount, 0);
 
+  const contractColumns: Column<ContractWithRelations>[] = [
+    {
+      key: "number",
+      header: "رقم العقد",
+      render: (r) => (
+        <Link to="/contracts/$id" params={{ id: r.id }} className="font-bold text-primary hover:underline">
+          {r.number || "بدون رقم"}
+        </Link>
+      ),
+    },
+    {
+      key: "tenant",
+      header: "المستأجر",
+      render: (r) =>
+        r.tenant_id ? (
+          <Link to="/tenants/$id" params={{ id: r.tenant_id }} className="text-primary hover:underline font-medium">
+            {r.tenants?.full_name || "—"}
+          </Link>
+        ) : (
+          r.tenants?.full_name || "—"
+        ),
+    },
+    { key: "start_date", header: "البداية", render: (r) => r.start_date },
+    { key: "end_date", header: "النهاية", render: (r) => r.end_date },
+    { key: "rent_amount", header: "الإيجار", render: (r) => egp(r.rent_amount) },
+    { key: "deposit", header: "التأمين", render: (r) => egp(r.deposit || 0) },
+    { key: "status", header: "الحالة", render: (r) => <StatusBadge status={getContractStatus(r.status, r.end_date)} /> },
+  ];
+
   const fields: CrudField[] = [
     { name: "number", label: "رقم الوحدة" },
     { name: "title", label: "اسم العقار / العنوان", colSpan: 2 },
@@ -263,6 +300,14 @@ function UnitDetail() {
         </div>
       </div>
 
+      {/* Contracts table */}
+      <SectionTitle>العقود المرتبطة ({unitContracts.length})</SectionTitle>
+      {unitContracts.length > 0 ? (
+        <DataTable columns={contractColumns} rows={unitContracts} />
+      ) : (
+        <EmptyState>لا توجد عقود مسجلة لهذه الوحدة حتى الآن.</EmptyState>
+      )}
+
       {/* Due / Overdue schedule */}
       <SectionTitle>جدول الدفعات المستحقة / المتأخرة</SectionTitle>
       {dueRows.length === 0 ? (
@@ -286,7 +331,7 @@ function UnitDetail() {
                   className={`border-b border-border last:border-0 ${row.status === "متأخر" ? "bg-red-500/5" : ""}`}
                 >
                   <td className="px-4 py-3 text-xs">
-                    {row.tenantName}
+                    {wrapFourWords(row.tenantName)}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{row.payment_date}</td>
                   <td className="px-4 py-3 font-semibold">{egp(row.amount)}</td>
@@ -326,7 +371,7 @@ function UnitDetail() {
               {paidRows.map((row) => (
                 <tr key={row.id} className="border-b border-border bg-emerald-500/5 last:border-0">
                   <td className="px-4 py-3 text-xs">
-                    {row.tenantName}
+                    {wrapFourWords(row.tenantName)}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{row.payment_date}</td>
                   <td className="px-4 py-3 font-semibold">{egp(row.amount)}</td>

@@ -1,15 +1,25 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useRef } from "react";
-import { Plus, Pencil, Trash2, Download, Upload, FileSpreadsheet, FileText } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Plus, Pencil, Trash2, Download, Upload, FileSpreadsheet, FileText, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, type Column } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CrudDialog, type CrudField } from "@/components/CrudDialog";
 import { ConfirmDelete } from "@/components/ConfirmDelete";
-import { getContracts, addContract, updateContract, deleteContract, type ContractWithRelations } from "@/api/contracts";
+import {
+  getContracts,
+  addContract,
+  updateContract,
+  deleteContract,
+  findConflictingContract,
+  normalizeDate,
+  type ContractWithRelations,
+} from "@/api/contracts";
 import { getUnits } from "@/api/units";
 import { getTenants } from "@/api/tenants";
 import { exportToExcel, importFromExcel, downloadTemplate } from "@/lib/excel";
@@ -30,12 +40,16 @@ export const Route = createFileRoute("/contracts/")({
   component: Contracts,
 });
 
-const contractStatuses = ["نشط", "عقد منتهي", "محجوز"];
+const contractStatuses = ["نشط", "عقد منتهي", "محجوز", "ملغي"];
 
 function Contracts() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Queries
   const { data: contracts = [], isLoading: loadingContracts } = useQuery({
@@ -52,6 +66,23 @@ function Contracts() {
     queryKey: ["tenants"],
     queryFn: getTenants,
   });
+
+  const filtered = useMemo(() => {
+    return contracts.filter((c) => {
+      const q = search.trim().toLowerCase();
+      const matchSearch =
+        !q ||
+        (c.number && c.number.toLowerCase().includes(q)) ||
+        (c.tenants?.full_name && c.tenants.full_name.toLowerCase().includes(q)) ||
+        (c.units?.title && c.units.title.toLowerCase().includes(q)) ||
+        (c.units?.number && c.units.number.toLowerCase().includes(q));
+
+      const actualStatus = getContractStatus(c.status, c.end_date);
+      const matchStatus = statusFilter === "all" || actualStatus === statusFilter || c.status === statusFilter;
+
+      return matchSearch && matchStatus;
+    });
+  }, [contracts, search, statusFilter]);
 
   // Mutations
   const addMutation = useMutation({
@@ -146,7 +177,7 @@ function Contracts() {
   ];
 
   const handleExport = () => {
-    const exportData = contracts.map(c => ({
+    const exportData = filtered.map(c => ({
       "رقم العقد": c.number,
       "اسم المستأجر": c.tenants?.full_name || "غير محدد",
       "الوحدة": `${c.units?.title} - ${c.units?.number || ''}`,
@@ -154,7 +185,7 @@ function Contracts() {
       "تاريخ النهاية": c.end_date,
       "الإيجار": c.rent_amount,
       "التأمين": c.deposit,
-      "الحالة": c.status,
+      "الحالة": getContractStatus(c.status, c.end_date),
     }));
     exportToExcel(exportData, "المنشآت_العقود");
   };
@@ -163,6 +194,77 @@ function Contracts() {
     downloadTemplate([
       "number", "tenant_id", "unit_id", "start_date", "end_date", "rent_amount", "deposit", "status"
     ], "Contracts_Template");
+  };
+
+  const validateAndCreateContract = (v: any) => {
+    if (!v.unit_id) {
+      toast.error("يرجى اختيار الوحدة");
+      return false;
+    }
+    if (!v.start_date || !v.end_date) {
+      toast.error("يرجى تحديد تاريخ البداية وتاريخ النهاية");
+      return false;
+    }
+    if (normalizeDate(v.start_date) > normalizeDate(v.end_date)) {
+      toast.error("تاريخ بداية العقد لا يمكن أن يكون بعد تاريخ النهاية");
+      return false;
+    }
+
+    const conflict = findConflictingContract(contracts, {
+      unitId: v.unit_id,
+      startDate: v.start_date,
+      endDate: v.end_date,
+    });
+
+    if (conflict) {
+      const unit = units.find((u) => u.id === v.unit_id);
+      const unitName = unit ? `${unit.title}${unit.number ? ` - ${unit.number}` : ""}` : "الوحدة";
+      const contractNum = conflict.number ? `(عقد رقم: ${conflict.number})` : "";
+      toast.error(
+        `لا يمكن إنشاء العقد: ${unitName} لديها عقد نشط بالفعل خلال الفترة من ${conflict.start_date} إلى ${conflict.end_date} ${contractNum}`,
+        { duration: 6000 }
+      );
+      return false;
+    }
+
+    addMutation.mutate({
+      ...v,
+      payment_frequency: v.payment_frequency || "monthly",
+      status: v.status || "نشط",
+    } as any);
+    return true;
+  };
+
+  const validateAndUpdateContract = (r: ContractWithRelations, v: any) => {
+    const targetUnitId = v.unit_id || r.unit_id;
+    const targetStart = v.start_date || r.start_date;
+    const targetEnd = v.end_date || r.end_date;
+
+    if (targetStart && targetEnd && normalizeDate(targetStart) > normalizeDate(targetEnd)) {
+      toast.error("تاريخ بداية العقد لا يمكن أن يكون بعد تاريخ النهاية");
+      return false;
+    }
+
+    const conflict = findConflictingContract(contracts, {
+      unitId: targetUnitId,
+      startDate: targetStart,
+      endDate: targetEnd,
+      excludeContractId: r.id,
+    });
+
+    if (conflict) {
+      const unit = units.find((u) => u.id === targetUnitId);
+      const unitName = unit ? `${unit.title}${unit.number ? ` - ${unit.number}` : ""}` : "الوحدة";
+      const contractNum = conflict.number ? `(عقد رقم: ${conflict.number})` : "";
+      toast.error(
+        `لا يمكن تحديث العقد: ${unitName} لديها عقد نشط آخر خلال الفترة من ${conflict.start_date} إلى ${conflict.end_date} ${contractNum}`,
+        { duration: 6000 }
+      );
+      return false;
+    }
+
+    updateMutation.mutate({ id: r.id, ...v } as any);
+    return true;
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,24 +281,49 @@ function Contracts() {
       }
 
       let successCount = 0;
+      let skippedCount = 0;
+      const batchAdded: any[] = [];
+
       for (const row of data) {
         if (!row.tenant_id || !row.unit_id) continue;
-        await addMutation.mutateAsync({
+        const startDate = row.start_date || format(new Date(), 'yyyy-MM-dd');
+        const endDate = row.end_date || format(new Date(), 'yyyy-MM-dd');
+
+        const conflict = findConflictingContract([...contracts, ...batchAdded], {
+          unitId: row.unit_id,
+          startDate,
+          endDate,
+        });
+
+        if (conflict) {
+          skippedCount++;
+          const unit = units.find((u) => u.id === row.unit_id);
+          const unitName = unit ? `${unit.title}${unit.number ? ` - ${unit.number}` : ''}` : row.unit_id;
+          toast.warning(`تم تخطي عقد للوحدة (${unitName}): يوجد عقد نشط خلال نفس الفترة (${startDate} إلى ${endDate})`);
+          continue;
+        }
+
+        const newContract = await addMutation.mutateAsync({
           number: row.number?.toString() || null,
           tenant_id: row.tenant_id,
           unit_id: row.unit_id,
-          start_date: row.start_date || format(new Date(), 'yyyy-MM-dd'),
-          end_date: row.end_date || format(new Date(), 'yyyy-MM-dd'),
+          start_date: startDate,
+          end_date: endDate,
           rent_amount: Number(row.rent_amount) || 0,
           deposit: Number(row.deposit) || null,
           payment_frequency: row.payment_frequency || 'monthly',
           status: row.status || 'نشط'
         });
+        batchAdded.push(newContract);
         successCount++;
       }
       
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
-      toast.success(`تم استيراد ${successCount} عقد بنجاح`, { id: toastId });
+      if (skippedCount > 0) {
+        toast.info(`تم استيراد ${successCount} عقد بنجاح وتخطي ${skippedCount} بسبب تعارض الفترات الزمنية`, { id: toastId });
+      } else {
+        toast.success(`تم استيراد ${successCount} عقد بنجاح`, { id: toastId });
+      }
     } catch (error: any) {
       toast.error(`فشل الاستيراد: ${error?.message || "تأكد من استخدام القالب الصحيح"}`, { id: toastId });
       console.error("Import Error:", error);
@@ -243,7 +370,7 @@ function Contracts() {
             title="تعديل عقد" 
             fields={fields} 
             initial={r} 
-            onSubmit={(v) => updateMutation.mutate({ id: r.id, ...v } as any)}
+            onSubmit={(v) => validateAndUpdateContract(r, v)}
             trigger={<Button size="icon" variant="ghost" className="h-8 w-8"><Pencil className="h-4 w-4" /></Button>} />
           <ConfirmDelete description={`سيتم حذف العقد "${r.number || 'بدون رقم'}".`} onConfirm={() => deleteMutation.mutate(r.id)}
             trigger={<Button size="icon" variant="ghost" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>} />
@@ -254,6 +381,58 @@ function Contracts() {
 
   return (
     <AppLayout title="العقود" subtitle="إدارة العقود النشطة والمنتهية والتجديدات">
+      {/* Search and Filters */}
+      <div className="my-4 rounded-xl border border-border bg-card p-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="بحث برقم العقد، اسم المستأجر، أو الوحدة..."
+              className="pr-9"
+            />
+          </div>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => {
+              setStatusFilter(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="الحالة" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الحالات</SelectItem>
+              {contractStatuses.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(search || statusFilter !== "all") && (
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("all");
+                  setPage(1);
+                }}
+              >
+                مسح التصفية
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="gap-1 text-muted-foreground" onClick={handleExport}>
@@ -277,18 +456,21 @@ function Contracts() {
         <CrudDialog<Omit<ContractWithRelations, "id" | "created_at" | "units" | "tenants">> 
           title="إنشاء عقد" 
           fields={fields} 
-          onSubmit={(v) => addMutation.mutate({ 
-            ...v, 
-            payment_frequency: v.payment_frequency || 'monthly',
-            status: v.status || 'نشط'
-          } as any)}
+          onSubmit={validateAndCreateContract}
           trigger={<Button className="gap-1"><Plus className="h-4 w-4" /> إنشاء عقد</Button>} />
       </div>
       
       {loadingContracts ? (
         <div className="flex justify-center p-8"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div></div>
       ) : (
-        <DataTable columns={columns} rows={contracts} onRowClick={(r) => navigate({ to: "/contracts/$id", params: { id: r.id } })} />
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          onRowClick={(r) => navigate({ to: "/contracts/$id", params: { id: r.id } })}
+          page={page}
+          defaultPageSize={10}
+          onPageChange={setPage}
+        />
       )}
     </AppLayout>
   );

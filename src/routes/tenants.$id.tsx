@@ -3,7 +3,7 @@ import { ArrowRight, Pencil, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { DataTable, type Column } from "@/components/DataTable";
+import { DataTable, type Column, wrapFourWords } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DetailGrid, SectionTitle, EmptyState } from "@/components/DetailField";
 import { CrudDialog, type CrudField } from "@/components/CrudDialog";
@@ -278,7 +278,7 @@ function TenantDetail() {
                 >
                   <td className="px-4 py-3">
                     <Link to="/contracts/$id" params={{ id: row.contractId }} className="text-primary hover:underline text-xs">
-                      {row.unitTitle}
+                      {wrapFourWords(row.unitTitle)}
                     </Link>
                   </td>
                   <td className="px-4 py-3 tabular-nums">{row.payment_date}</td>
@@ -320,7 +320,7 @@ function TenantDetail() {
                 <tr key={row.id} className="border-b border-border bg-emerald-500/5 last:border-0">
                   <td className="px-4 py-3 text-xs">
                     <Link to="/contracts/$id" params={{ id: row.contractId }} className="text-primary hover:underline">
-                      {row.unitTitle}
+                      {wrapFourWords(row.unitTitle)}
                     </Link>
                   </td>
                   <td className="px-4 py-3 tabular-nums">{row.payment_date}</td>

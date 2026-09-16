@@ -11,7 +11,7 @@ import { PayNowDialog } from "@/components/PayNowDialog";
 import { egp } from "@/lib/mockData";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getContracts, updateContract, deleteContract } from "@/api/contracts";
+import { getContracts, updateContract, deleteContract, findConflictingContract, normalizeDate } from "@/api/contracts";
 import { getPayments, type PaymentWithRelations } from "@/api/payments";
 import { getDepositByContractId, updateDeposit } from "@/api/deposits";
 import { getUnits } from "@/api/units";
@@ -23,7 +23,7 @@ import {
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-const contractStatuses = ["نشط", "عقد منتهي", "محجوز"];
+const contractStatuses = ["نشط", "عقد منتهي", "محجوز", "ملغي"];
 
 const getContractStatus = (status: string | null, endDate: string | null) => {
   if (status === "نشط" && endDate && isBefore(new Date(endDate), startOfDay(new Date()))) {
@@ -300,6 +300,38 @@ function ContractDetail() {
     { name: "attachment_url", label: "مستند العقد المرفق (PDF / صورة)", type: "file", colSpan: 2 },
   ];
 
+  const handleUpdateContract = (v: any) => {
+    const targetUnitId = v.unit_id || contract.unit_id;
+    const targetStart = v.start_date || contract.start_date;
+    const targetEnd = v.end_date || contract.end_date;
+
+    if (targetStart && targetEnd && normalizeDate(targetStart) > normalizeDate(targetEnd)) {
+      toast.error("تاريخ بداية العقد لا يمكن أن يكون بعد تاريخ النهاية");
+      return false;
+    }
+
+    const conflict = findConflictingContract(contracts, {
+      unitId: targetUnitId,
+      startDate: targetStart,
+      endDate: targetEnd,
+      excludeContractId: contract.id,
+    });
+
+    if (conflict) {
+      const unit = units.find((u) => u.id === targetUnitId);
+      const unitName = unit ? `${unit.title}${unit.number ? ` - ${unit.number}` : ""}` : "الوحدة";
+      const contractNum = conflict.number ? `(عقد رقم: ${conflict.number})` : "";
+      toast.error(
+        `لا يمكن تحديث العقد: ${unitName} لديها عقد نشط آخر خلال الفترة من ${conflict.start_date} إلى ${conflict.end_date} ${contractNum}`,
+        { duration: 6000 }
+      );
+      return false;
+    }
+
+    updateMutation.mutate({ ...v, id: contract.id } as any);
+    return true;
+  };
+
   return (
     <AppLayout
       title={`عقد ${contract.number || "بدون رقم"}`}
@@ -315,7 +347,7 @@ function ContractDetail() {
             title="تعديل عقد"
             fields={fields}
             initial={contract}
-            onSubmit={(v) => updateMutation.mutate({ ...v, id: contract.id } as any)}
+            onSubmit={handleUpdateContract}
             trigger={<Button variant="outline" size="sm" className="gap-1"><Pencil className="h-4 w-4" /> تعديل</Button>}
           />
           <ConfirmDelete

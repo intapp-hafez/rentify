@@ -44,6 +44,7 @@ function Payments() {
   const [contractFilter, setContractFilter] = useState(ALL);
   const [tenantFilter, setTenantFilter] = useState(ALL);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [page, setPage] = useState(1);
 
   // Queries
   const { data: payments = [], isLoading } = useQuery({
@@ -156,6 +157,7 @@ function Payments() {
     setSearch("");
     setContractFilter(ALL);
     setTenantFilter(ALL);
+    setPage(1);
   };
 
   const handleExport = () => {
@@ -280,16 +282,36 @@ function Payments() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <div className="relative xl:col-span-1">
             <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث بالإيصال أو المستأجر أو الوحدة" className="pr-9" />
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="بحث بالإيصال أو المستأجر أو الوحدة"
+              className="pr-9"
+            />
           </div>
-          <Select value={contractFilter} onValueChange={setContractFilter}>
+          <Select
+            value={contractFilter}
+            onValueChange={(v) => {
+              setContractFilter(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger><SelectValue placeholder="العقد" /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>كل العقود</SelectItem>
               {contracts.map((c) => <SelectItem key={c.id} value={c.number || ''}>{c.number} — {c.tenants?.full_name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={tenantFilter} onValueChange={setTenantFilter}>
+          <Select
+            value={tenantFilter}
+            onValueChange={(v) => {
+              setTenantFilter(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger><SelectValue placeholder="المستأجر" /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>كل المستأجرين</SelectItem>
@@ -338,7 +360,13 @@ function Payments() {
       {isLoading ? (
         <div className="flex justify-center p-8"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div></div>
       ) : (
-        <DataTable columns={columns} rows={filtered} />
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          page={page}
+          defaultPageSize={10}
+          onPageChange={setPage}
+        />
       )}
     </AppLayout>
   );

@@ -33,7 +33,7 @@ export function CrudDialog<T extends Record<string, any>>({
   fields: CrudField[];
   initial?: Partial<T>;
   submitLabel?: string;
-  onSubmit: (values: T) => void;
+  onSubmit: (values: T) => void | boolean | Promise<void | boolean>;
 }) {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, any>>(initial ?? {});
@@ -46,15 +46,17 @@ export function CrudDialog<T extends Record<string, any>>({
     }
   }
 
-  function submit() {
+  async function submit() {
     const out: Record<string, any> = {};
     for (const f of fields) {
       if (f.type === "custom") continue;
       const raw = values[f.name];
       out[f.name] = f.type === "number" ? Number(raw) || 0 : raw ?? "";
     }
-    onSubmit(out as T);
-    setOpen(false);
+    const result = await onSubmit(out as T);
+    if (result !== false) {
+      setOpen(false);
+    }
   }
 
   function onOpenChange(v: boolean) {

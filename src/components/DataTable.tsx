@@ -1,6 +1,57 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
+export function wrapFourWords(node: ReactNode, maxWords = 4): ReactNode {
+  if (node === null || node === undefined || typeof node === "boolean") {
+    return node;
+  }
+
+  if (typeof node === "string") {
+    const trimmed = node.trim();
+    if (!trimmed) return node;
+
+    const words = trimmed.split(/\s+/);
+    if (words.length <= maxWords) {
+      return node;
+    }
+
+    const lines: string[] = [];
+    for (let i = 0; i < words.length; i += maxWords) {
+      lines.push(words.slice(i, i + maxWords).join(" "));
+    }
+
+    return (
+      <span className="inline-flex flex-col gap-0.5 leading-snug">
+        {lines.map((line, idx) => (
+          <span key={idx}>{line}</span>
+        ))}
+      </span>
+    );
+  }
+
+  if (typeof node === "number") {
+    return node;
+  }
+
+  if (React.isValidElement(node)) {
+    const children = (node.props as any)?.children;
+    if (typeof children === "string") {
+      return React.cloneElement(node as React.ReactElement<any>, {
+        children: wrapFourWords(children, maxWords),
+      });
+    }
+
+    if (Array.isArray(children) && children.every((c) => typeof c === "string" || typeof c === "number")) {
+      const combined = children.join("");
+      return React.cloneElement(node as React.ReactElement<any>, {
+        children: wrapFourWords(combined, maxWords),
+      });
+    }
+  }
+
+  return node;
+}
 
 export interface Column<T> {
   key: string;
@@ -58,8 +109,8 @@ export function DataTable<T extends { id: string }>({
                 className={`border-t border-border transition-colors hover:bg-secondary/40 ${onRowClick ? "cursor-pointer" : ""}`}
               >
                 {columns.map((c) => (
-                  <td key={c.key} className="whitespace-nowrap px-4 py-3 text-foreground/90">
-                    {c.render(row)}
+                  <td key={c.key} className="px-4 py-3 text-foreground/90 align-middle">
+                    {wrapFourWords(c.render(row))}
                   </td>
                 ))}
               </tr>
@@ -108,17 +159,48 @@ export function DataTable<T extends { id: string }>({
             >
               السابق
             </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <Button
-                key={p}
-                variant={p === safePage ? "default" : "outline"}
-                size="sm"
-                onClick={() => onPageChange(p)}
-                className="min-w-[2rem]"
-              >
-                {p}
-              </Button>
-            ))}
+            {(() => {
+              if (totalPages <= 7) {
+                return Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <Button
+                    key={p}
+                    variant={p === safePage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => onPageChange(p)}
+                    className="min-w-[2rem]"
+                  >
+                    {p}
+                  </Button>
+                ));
+              }
+
+              const items: (number | string)[] = [];
+              if (safePage <= 4) {
+                items.push(1, 2, 3, 4, 5, "...", totalPages);
+              } else if (safePage >= totalPages - 3) {
+                items.push(1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+              } else {
+                items.push(1, "...", safePage - 1, safePage, safePage + 1, "...", totalPages);
+              }
+
+              return items.map((item, idx) =>
+                typeof item === "string" ? (
+                  <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted-foreground">
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={item === safePage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => onPageChange(item)}
+                    className="min-w-[2rem]"
+                  >
+                    {item}
+                  </Button>
+                )
+              );
+            })()}
             <Button
               variant="outline"
               size="sm"
